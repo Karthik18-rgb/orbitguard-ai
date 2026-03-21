@@ -12,6 +12,8 @@ st.set_page_config(
     layout="wide"
 )
 
+# 👇 IMPORTANT: Turn OFF backend for deployment
+USE_BACKEND = False
 API_URL = "http://127.0.0.1:8000/api/detect"
 
 # ---------------- LOAD MODEL ----------------
@@ -29,6 +31,9 @@ st.sidebar.write("YOLOv8 (Backend)")
 st.sidebar.write("XGBoost Risk Model")
 st.sidebar.write("FastAPI + Streamlit")
 
+if not USE_BACKEND:
+    st.info("🚀 Running in demo mode (backend disabled for cloud deployment)")
+
 uploaded_file = st.file_uploader(
     "Upload Satellite Image",
     type=["jpg", "jpeg", "png"]
@@ -37,31 +42,38 @@ uploaded_file = st.file_uploader(
 # ---------------- MAIN LOGIC ----------------
 if uploaded_file is not None:
 
-    # ---------- CALL BACKEND ----------
-    files = {
-        "file": (
-            uploaded_file.name,
-            uploaded_file.getvalue(),
-            uploaded_file.type
-        )
-    }
-
-    with st.spinner("Running debris detection via backend..."):
-        response = requests.post(API_URL, files=files)
-
-    if response.status_code != 200:
-        st.error("Backend detection failed")
-        st.stop()
-
-    data = response.json()
-
-    # ---------- DETECTION RESULTS ----------
     st.subheader("🧠 Debris Detection Results")
 
-    debris_count = data["debris_count"]
-    avg_area = data["avg_area"]
-    max_area = data["max_area"]
+    if USE_BACKEND:
+        # ---------- CALL BACKEND ----------
+        files = {
+            "file": (
+                uploaded_file.name,
+                uploaded_file.getvalue(),
+                uploaded_file.type
+            )
+        }
 
+        with st.spinner("Running debris detection via backend..."):
+            response = requests.post(API_URL, files=files)
+
+        if response.status_code != 200:
+            st.error("Backend detection failed")
+            st.stop()
+
+        data = response.json()
+
+        debris_count = data["debris_count"]
+        avg_area = data["avg_area"]
+        max_area = data["max_area"]
+
+    else:
+        # ---------- MOCK DATA (FOR DEPLOYMENT) ----------
+        debris_count = np.random.randint(5, 50)
+        avg_area = np.random.uniform(10, 100)
+        max_area = np.random.uniform(100, 500)
+
+    # ---------- DISPLAY METRICS ----------
     col1, col2, col3 = st.columns(3)
     col1.metric("Debris Count", debris_count)
     col2.metric("Avg Area", f"{avg_area:.2f}")
@@ -97,8 +109,7 @@ if uploaded_file is not None:
     col1.metric("30-Day Risk", f"{preds[30]:.2f}")
     col2.metric("90-Day Risk", f"{preds[90]:.2f}")
 
-    fig, ax = plt.subplots(figsize=(8, 4))
-    plot_forecast(history, preds, ax)
+    fig = plot_forecast(history, preds, None)
     st.pyplot(fig)
 
     # ---------- RECOMMENDATIONS ----------
