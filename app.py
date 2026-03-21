@@ -109,7 +109,8 @@ if uploaded_file is not None:
     col1.metric("30-Day Risk", f"{preds[30]:.2f}")
     col2.metric("90-Day Risk", f"{preds[90]:.2f}")
 
-    fig = plot_forecast(history, preds, None)
+    fig,ax = plt.subplots(figsize=(8, 4)) 
+    plot_forecast(history, preds, ax)
     st.pyplot(fig)
 
     # ---------- RECOMMENDATIONS ----------
